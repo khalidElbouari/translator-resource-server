@@ -1,15 +1,14 @@
 import https from "https";
+import { TEXT_MODEL, VISION_MODEL, PROMPTS } from "../config/llmConfig.js";
 
 export const callHuggingFaceAPI = (text) => {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
-      model: "deepseek-ai/DeepSeek-R1:fastest",
+      model: TEXT_MODEL,
       messages: [
         {
           role: "user",
-          content: `Translate this text into Moroccan Darija using Arabic script only.
-                    No English letters, no explanations, no comments.
-                    Output only the translation:\n\n"${text}"`
+          content: `${PROMPTS.textTranslation}\n\n"${text}"`
         }
       ],
       stream: false,
@@ -58,12 +57,12 @@ export const callHuggingFaceAPI = (text) => {
 export const callHuggingFaceVisionAPI = ({ imageUrl, prompt }) => {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
-      model: process.env.HF_VISION_MODEL || "Qwen/Qwen2.5-VL-7B-Instruct",
+      model: VISION_MODEL,
       messages: [
         {
           role: "user",
           content: [
-            { type: "text", text: prompt },
+            { type: "text", text: prompt || PROMPTS.imageTranslation },
             { type: "image_url", image_url: { url: imageUrl } }
           ]
         }

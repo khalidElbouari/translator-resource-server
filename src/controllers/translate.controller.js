@@ -12,7 +12,8 @@ export const translateText = async (req, res) => {
     res.json({ original: text, translated });
   } catch (err) {
     console.error("Controller error:", err);
-    res.status(500).json({ error: "Internal server error", details: err.message });
+    const status = err?.status || 500;
+    res.status(status).json({ error: err?.message || "Internal server error", details: err });
   }
 };
 

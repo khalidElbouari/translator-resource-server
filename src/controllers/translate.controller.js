@@ -1,5 +1,5 @@
 import { callHuggingFaceAPI, callHuggingFaceVisionAPI } from "../services/huggingface.service.js";
-import { callGeminiTextAPI } from "../services/google.service.js";
+import { callGeminiTextAPI, callGeminiVisionAPI } from "../services/google.service.js";
 import { cleanAIResponse } from "../utils/cleanResponse.js";
 
 export const translateText = async (req, res) => {
@@ -65,10 +65,46 @@ export const translateImage = async (req, res) => {
   }
 };
 
+export const translateImageGemini = async (req, res) => {
+  try {
+    const { imageBase64, mimeType = "image/png" } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Provide "imageBase64" in request body for Gemini' });
+    }
+
+    const base64 = normalizeBase64(imageBase64);
+    if (!base64) return res.status(400).json({ error: "Invalid base64 image payload" });
+
+    const rawResponse = await callGeminiVisionAPI({ imageBase64: base64, mimeType });
+    const cleaned = cleanAIResponse(rawResponse);
+    const translated = cleaned || rawResponse?.trim?.() || "";
+
+    if (!translated) {
+      return res.status(502).json({ error: "Translation returned empty", raw: rawResponse || null });
+    }
+
+    res.json({ source: "base64", translated, raw: rawResponse, provider: "gemini" });
+  } catch (err) {
+    console.error("Gemini image translation error:", err);
+    const status = err?.status || 500;
+    res.status(status).json({ error: err?.message || "Internal server error", details: err });
+  }
+};
+
 const buildDataUrl = (base64) => {
   if (!base64 || typeof base64 !== "string") return null;
   const trimmed = base64.trim();
   if (trimmed.startsWith("data:image")) return trimmed;
   // Default to PNG if no mime provided
   return `data:image/png;base64,${trimmed}`;
+};
+
+const normalizeBase64 = (input) => {
+  if (!input || typeof input !== "string") return null;
+  const trimmed = input.trim();
+  const commaIdx = trimmed.indexOf(",");
+  if (trimmed.startsWith("data:image") && commaIdx !== -1) {
+    return trimmed.slice(commaIdx + 1);
+  }
+  return trimmed;
 };

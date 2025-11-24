@@ -46,8 +46,7 @@ export const translateImage = async (req, res) => {
       return res.status(400).json({ error: "Invalid image payload" });
     }
 
-    const prompt = "Translate the visible text in this image into Moroccan Darija using Arabic script only. No explanations.";
-    const rawResponse = await callHuggingFaceVisionAPI({ imageUrl: resolvedImageUrl, prompt });
+    const rawResponse = await callHuggingFaceVisionAPI({ imageUrl: resolvedImageUrl });
     const cleaned = cleanAIResponse(rawResponse);
     const translated = cleaned || rawResponse?.trim?.() || "";
 

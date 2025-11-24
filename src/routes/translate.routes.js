@@ -4,9 +4,8 @@ import { translateText, translateImage, translateTextGemini, translateImageGemin
 const router = express.Router();
 
 // Default to Hugging Face text; Gemini available at /gemini
-router.post("/", translateText);
-router.post("/gemini", translateTextGemini);
+//translateTextGemini , translateImageGemini , translateText, translateImage
+router.post("/", translateTextGemini);
 router.post("/image", translateImage);
-router.post("/image/gemini", translateImageGemini);
 
 export default router;

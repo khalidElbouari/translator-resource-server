@@ -11,7 +11,8 @@ app.use(cors({
   methods: ["GET", "POST"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));
-app.use(express.json());
+// Allow larger payloads for base64 images while keeping a sane ceiling
+app.use(express.json({ limit: "10mb" }));
 
 // Routes
 app.use("/api/v1/translate", translateRoutes);

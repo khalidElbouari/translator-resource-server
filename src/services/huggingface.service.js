@@ -33,6 +33,15 @@ export const callHuggingFaceAPI = (text) => {
       apiRes.on("end", () => {
         try {
           const parsed = JSON.parse(body);
+          if (apiRes.statusCode >= 400 || parsed.error) {
+            const err = {
+              message: parsed.error?.message || parsed.error || `HF API error (${apiRes.statusCode})`,
+              status: apiRes.statusCode,
+              body: parsed,
+            };
+            console.error("HF text API error:", err);
+            return reject(err);
+          }
           resolve(parsed.choices?.[0]?.message?.content || "");
         } catch (parseErr) {
           reject({ message: "Failed to parse API response", status: apiRes.statusCode, body });

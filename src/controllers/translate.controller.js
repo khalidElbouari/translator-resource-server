@@ -1,4 +1,5 @@
 import { callHuggingFaceAPI, callHuggingFaceVisionAPI } from "../services/huggingface.service.js";
+import { callGeminiTextAPI } from "../services/google.service.js";
 import { cleanAIResponse } from "../utils/cleanResponse.js";
 
 export const translateText = async (req, res) => {
@@ -12,6 +13,22 @@ export const translateText = async (req, res) => {
     res.json({ original: text, translated });
   } catch (err) {
     console.error("Controller error:", err);
+    const status = err?.status || 500;
+    res.status(status).json({ error: err?.message || "Internal server error", details: err });
+  }
+};
+
+export const translateTextGemini = async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: 'Missing "text" in request body' });
+
+    const rawResponse = await callGeminiTextAPI(text);
+    const translated = cleanAIResponse(rawResponse);
+
+    res.json({ original: text, translated, provider: "gemini" });
+  } catch (err) {
+    console.error("Gemini controller error:", err);
     const status = err?.status || 500;
     res.status(status).json({ error: err?.message || "Internal server error", details: err });
   }

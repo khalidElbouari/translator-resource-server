@@ -1,23 +1,26 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import translateRoutes from "./routes/translate.routes.js";
+import { createApp } from "./app.js";
+import { env } from "./config/env.js";
+import logger from "./utils/logger.js";
+import { connectMongo } from "./infrastructure/database/mongo.js";
+import { connectRedis } from "./infrastructure/database/redis.js";
 
-dotenv.config();
-const app = express();
+const bootstrap = async () => {
+  try {
+    await connectMongo();
+  } catch (err) {
+    logger.warn("Continuing without MongoDB connection", { error: err?.message });
+  }
 
-app.use(cors({
-  origin: "*", // Later you can limit this to your extension ID for security
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
-// Allow larger payloads for base64 images while keeping a sane ceiling
-app.use(express.json({ limit: "10mb" }));
+  try {
+    await connectRedis();
+  } catch (err) {
+    logger.warn("Continuing without Redis connection", { error: err?.message });
+  }
 
-// Routes
-app.use("/api/v1/translate", translateRoutes);
+  const app = createApp();
+  app.listen(env.port, () => {
+    logger.info(`Server running on http://localhost:${env.port}`);
+  });
+};
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
-});
+bootstrap();

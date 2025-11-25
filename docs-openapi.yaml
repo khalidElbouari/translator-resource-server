@@ -1,0 +1,435 @@
+openapi: 3.0.3
+info:
+  title: Translator Server API
+  version: 1.0.0
+  description: |
+    Backend for the AI Browser Assistant: translation, content processing, auth, and usage tracking.
+
+servers:
+  - url: http://localhost:3000
+
+tags:
+  - name: Auth
+  - name: Translation
+  - name: Content
+  - name: User
+  - name: Webhooks
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [Auth]
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  uptime:
+                    type: number
+
+  /api/auth/google:
+    post:
+      summary: Authenticate user with Google OAuth
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  description: Google ID token from the browser extension.
+                idToken:
+                  type: string
+                  description: Alternative field name for the Google ID token.
+      responses:
+        "200":
+          description: Authenticated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      email:
+                        type: string
+                      displayName:
+                        type: string
+                      avatarUrl:
+                        type: string
+                      plan:
+                        type: string
+                        enum: [free, premium, enterprise]
+                      authProvider:
+                        type: string
+                        example: google
+                      lastLoginAt:
+                        type: string
+                        format: date-time
+        "400":
+          description: Invalid or missing token
+
+  /api/translate:
+    post:
+      summary: Translate text between languages
+      description: |
+        Translates text from a source language (or auto-detected) to a target language with an optional tone.
+      tags: [Translation]
+      parameters:
+        - in: header
+          name: x-user-id
+          required: true
+          schema:
+            type: string
+          description: Application user identifier (from Google auth or extension).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                sourceLanguage:
+                  type: string
+                  description: Source language code or "auto".
+                  example: auto
+                targetLanguage:
+                  type: string
+                  description: Target language code.
+                  example: ar
+                tone:
+                  type: string
+                  description: Translation tone (e.g. neutral, formal, casual).
+      responses:
+        "200":
+          description: Translation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      original:
+                        type: string
+                      translated:
+                        type: string
+                      provider:
+                        type: string
+                      sourceLanguage:
+                        type: string
+                      targetLanguage:
+                        type: string
+                      tone:
+                        type: string
+        "400":
+          description: Invalid input or missing userId
+
+  /api/content/summarize:
+    post:
+      summary: Summarize content
+      tags: [Content]
+      parameters:
+        - in: header
+          name: x-user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                mode:
+                  type: string
+                  enum: [bullet, academic, tldr]
+                targetLanguage:
+                  type: string
+      responses:
+        "200":
+          description: Summary result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      mode:
+                        type: string
+                      targetLanguage:
+                        type: string
+                      summary:
+                        type: string
+
+  /api/content/explain:
+    post:
+      summary: Explain content at a given level
+      tags: [Content]
+      parameters:
+        - in: header
+          name: x-user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                level:
+                  type: string
+                  enum: [simple, intermediate, professional, academic]
+                targetLanguage:
+                  type: string
+      responses:
+        "200":
+          description: Explanation result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      level:
+                        type: string
+                      targetLanguage:
+                        type: string
+                      explanation:
+                        type: string
+
+  /api/content/rewrite:
+    post:
+      summary: Rewrite or improve text
+      tags: [Content]
+      parameters:
+        - in: header
+          name: x-user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text:
+                  type: string
+                tone:
+                  type: string
+                  description: e.g. formal, casual, email, academic.
+                targetLanguage:
+                  type: string
+      responses:
+        "200":
+          description: Rewrite result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tone:
+                        type: string
+                      targetLanguage:
+                        type: string
+                      rewritten:
+                        type: string
+
+  /api/content/form-assist:
+    post:
+      summary: Generate smart form field suggestions
+      tags: [Content]
+      parameters:
+        - in: header
+          name: x-user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, fieldLabel]
+              properties:
+                text:
+                  type: string
+                  description: Context around the field (e.g. question text).
+                fieldLabel:
+                  type: string
+                  description: Human label of the field.
+                formType:
+                  type: string
+                  description: e.g. job-application, visa, complaint.
+                profileHints:
+                  type: object
+                  additionalProperties: true
+      responses:
+        "200":
+          description: Form suggestion
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      fieldLabel:
+                        type: string
+                      formType:
+                        type: string
+                      suggestion:
+                        type: string
+
+  /api/user/status:
+    get:
+      summary: Get user plan, subscription, and usage
+      tags: [User]
+      parameters:
+        - in: header
+          name: x-user-id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User status and quotas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                      plan:
+                        type: string
+                        enum: [free, premium, enterprise]
+                      subscriptionStatus:
+                        type: string
+                        enum: [active, expired, cancelled, none]
+                      renewAt:
+                        type: string
+                        format: date-time
+                        nullable: true
+                      usageToday:
+                        type: number
+                      featureCounts:
+                        type: object
+                        additionalProperties:
+                          type: number
+                      remainingQuota:
+                        type: object
+                        additionalProperties:
+                          nullable: true
+                          type: number
+                      availableFeatures:
+                        type: object
+                        additionalProperties:
+                          type: object
+                          properties:
+                            enabled:
+                              type: boolean
+                            limit:
+                              nullable: true
+                              type: number
+                            remaining:
+                              nullable: true
+                              type: number
+        "400":
+          description: Missing userId
+
+  /api/webhooks/paddle:
+    post:
+      summary: Paddle webhook receiver
+      description: |
+        Receives Paddle subscription events and updates user plan/status accordingly.
+        NOTE: Implement signature validation for production.
+      tags: [Webhooks]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event_type:
+                  type: string
+                  example: subscription_activated
+                alert_name:
+                  type: string
+                  example: subscription_activated
+                data:
+                  type: object
+                  properties:
+                    user_id:
+                      type: string
+                      description: Application userId (passed as custom data from frontend).
+                    id:
+                      type: string
+                      description: Paddle subscription id
+                    subscription_id:
+                      type: string
+                      description: Paddle subscription id
+                    next_billed_at:
+                      type: string
+                      format: date-time
+                    next_bill_date:
+                      type: string
+                      format: date-time
+                    custom_data:
+                      type: object
+                      description: Should include userId
+      responses:
+        "200":
+          description: Event processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  received:
+                    type: boolean
+                    example: true
+        "400":
+          description: Missing user identifier
